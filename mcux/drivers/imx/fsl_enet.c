@@ -87,6 +87,8 @@ static enet_isr_t s_enetTsIsr[ARRAY_SIZE(s_enetBases)];
 static enet_isr_t s_enet1588TimerIsr[ARRAY_SIZE(s_enetBases)];
 #endif
 
+static void ENET_ReclaimTxDescriptor(ENET_Type *base, enet_handle_t *handle, uint8_t ringId);
+
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
@@ -326,7 +328,6 @@ void ENET_Down(ENET_Type *base)
 {
     /* Disable interrupt. */
     base->EIMR = 0;
-
     /* Disable ENET. */
     base->ECR &= ~ENET_ECR_ETHEREN_MASK;
 }
@@ -1727,6 +1728,9 @@ status_t ENET_SendFrame(ENET_Type *base,
         else if ((handle->TxReclaimEnable[ringId]) && !ENET_TxDirtyRingAvailable(txDirtyRing))
         {
             result = kStatus_ENET_TxFrameBusy;
+#if 1
+            ENET_ReclaimTxDescriptor(base, handle, ringId);
+#endif
         }
         else
         {
@@ -2800,14 +2804,16 @@ void ENET_Ptp1588Configure(ENET_Type *base, enet_handle_t *handle, enet_ptp_conf
  */
 void ENET_Ptp1588StartTimer(ENET_Type *base, uint32_t ptpClkSrc)
 {
-    /* Restart PTP 1588 timer, master clock. */
-    base->ATCR = ENET_ATCR_RESTART_MASK;
-
     /* Initializes PTP 1588 timer. */
     base->ATINC = ENET_ATINC_INC(ENET_NANOSECOND_ONE_SECOND / ptpClkSrc);
     base->ATPER = ENET_NANOSECOND_ONE_SECOND;
     /* Sets periodical event and the event signal output assertion and Actives PTP 1588 timer.  */
     base->ATCR = ENET_ATCR_PEREN_MASK | ENET_ATCR_PINPER_MASK | ENET_ATCR_EN_MASK;
+    /* Restart PTP 1588 timer, master clock. */
+    base->ATCR |= ENET_ATCR_RESTART_MASK;
+    while ((base->ATCR & ENET_ATCR_RESTART_MASK) == ENET_ATCR_RESTART_MASK) {
+	;
+    }
 }
 
 /*!
@@ -2830,9 +2836,8 @@ void ENET_Ptp1588GetTimerNoIrqDisable(ENET_Type *base, enet_handle_t *handle, en
        It's the requirement when the 1588 clock source is slower
        than the register clock.
     */
-    while (0U != (count--))
-    {
-        __NOP();
+    while ((base->ATCR & ENET_ATCR_CAPTURE_MASK) == ENET_ATCR_CAPTURE_MASK) {
+	;
     }
     /* Get the captured time. */
     ptpTime->nanosecond = base->ATVR;

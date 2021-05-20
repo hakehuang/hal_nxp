@@ -2800,14 +2800,23 @@ void ENET_Ptp1588Configure(ENET_Type *base, enet_handle_t *handle, enet_ptp_conf
  */
 void ENET_Ptp1588StartTimer(ENET_Type *base, uint32_t ptpClkSrc)
 {
-    /* Restart PTP 1588 timer, master clock. */
-    base->ATCR = ENET_ATCR_RESTART_MASK;
+    printk(" base->ATCR = %x\n",  base->ATCR);
 
     /* Initializes PTP 1588 timer. */
     base->ATINC = ENET_ATINC_INC(ENET_NANOSECOND_ONE_SECOND / ptpClkSrc);
     base->ATPER = ENET_NANOSECOND_ONE_SECOND;
     /* Sets periodical event and the event signal output assertion and Actives PTP 1588 timer.  */
     base->ATCR = ENET_ATCR_PEREN_MASK | ENET_ATCR_PINPER_MASK | ENET_ATCR_EN_MASK;
+    /* Restart PTP 1588 timer, master clock. */
+    base->ATCR |= ENET_ATCR_RESTART_MASK;
+    printk(" base->ATCR = %x\n",  base->ATCR);
+    printk("base->ATPER = %x\n", base->ATPER);
+    printk("base->ATINC = %x\n", base->ATINC);
+    while ((base->ATCR & ENET_ATCR_RESTART_MASK) == ENET_ATCR_RESTART_MASK) {
+	;
+    }
+    printk(" base->ATCR = %x\n",  base->ATCR);
+    printk("Start Timer\n");
 }
 
 /*!
@@ -2836,6 +2845,8 @@ void ENET_Ptp1588GetTimerNoIrqDisable(ENET_Type *base, enet_handle_t *handle, en
     }
     /* Get the captured time. */
     ptpTime->nanosecond = base->ATVR;
+    //printk("base->ATCR = %x\n",  base->ATCR);
+    //printk("base->ATVR = %x\n",  base->ATVR);
 }
 
 /*!
