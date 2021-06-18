@@ -2808,7 +2808,11 @@ void ENET_Ptp1588StartTimer(ENET_Type *base, uint32_t ptpClkSrc)
     base->ATINC = ENET_ATINC_INC(ENET_NANOSECOND_ONE_SECOND / ptpClkSrc);
     base->ATPER = ENET_NANOSECOND_ONE_SECOND;
     /* Sets periodical event and the event signal output assertion and Actives PTP 1588 timer.  */
+#if 0
     base->ATCR = ENET_ATCR_PEREN_MASK | ENET_ATCR_PINPER_MASK | ENET_ATCR_EN_MASK;
+#else
+    base->ATCR = ENET_ATCR_EN_MASK;
+#endif
     /* Restart PTP 1588 timer, master clock. */
     base->ATCR |= ENET_ATCR_RESTART_MASK;
     while ((base->ATCR & ENET_ATCR_RESTART_MASK) == ENET_ATCR_RESTART_MASK) {
